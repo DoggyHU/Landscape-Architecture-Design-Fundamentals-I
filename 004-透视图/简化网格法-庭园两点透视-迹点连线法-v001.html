@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>庭园一点透视 · 全程十步</title>
+<style>
+:root{--u:#0b57ff;--bd:#b8b8b8;--panel:196px;--ink:#111}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;color:var(--ink);font-family:Arial,"Noto Sans SC","Microsoft YaHei",sans-serif}
+body{background:#fbfbf8}
+body.picture{background:linear-gradient(#e9f4ff 0,#e9f4ff 50%,#f1e9dd 50%,#f1e9dd 100%)}
+#viewport{position:fixed;left:0;top:0;bottom:0;right:calc(var(--panel) + 30px);overflow:hidden}
+#scene,#overlay{position:absolute;inset:0;width:100%;height:100%;display:block}
+#scene{touch-action:none}
+#overlay{pointer-events:none}
+.page-title{position:fixed;left:18px;top:12px;z-index:5;font-size:21px;font-weight:600;pointer-events:none;letter-spacing:.5px}
+.page-sub{position:fixed;left:18px;top:42px;z-index:5;font-size:12px;color:#777;pointer-events:none}
+.stage-label{position:fixed;left:18px;top:64px;z-index:5;font-size:12px;font-weight:600;color:#24964a;pointer-events:none}
+.hint{position:fixed;left:18px;bottom:12px;z-index:5;font-size:12px;color:#666;pointer-events:none}
+.failure{display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:#fff;color:#a33;font-size:15px;z-index:9}
+button{font:inherit;font-size:12px;height:28px;padding:0 8px;border:1px solid var(--bd);border-radius:6px;background:rgba(255,255,255,.95);color:var(--ink);cursor:pointer;text-align:left;line-height:1}
+button:hover{background:#f2f6ff}
+button:focus-visible{outline:2px solid var(--u);outline-offset:1px}
+button.active{border-color:var(--u);color:var(--u);font-weight:600}
+button:disabled{opacity:.38;cursor:default}
+.panel{position:fixed;right:16px;top:14px;bottom:14px;width:var(--panel);z-index:6;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.panel>*{pointer-events:auto}
+.panel-scroll{display:grid;gap:8px;overflow:auto;min-height:0;padding-right:2px;align-content:start;scrollbar-width:thin}
+.button-group{display:grid;gap:0}
+.button-group button{border-radius:0;margin-top:-1px}
+.button-group button:first-child{margin-top:0;border-radius:6px 6px 0 0}
+.button-group button:last-child{border-radius:0 0 6px 6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.two button,.three button{text-align:center;white-space:nowrap;padding:0 3px;overflow:hidden}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px}
+.slider-row{display:grid;grid-template-columns:26px minmax(0,1fr) 26px;gap:2px}
+.slider-row>button{width:26px;padding:0;text-align:center;font-size:15px}
+.slider-label{display:flex;flex-direction:column;justify-content:center;gap:2px;height:44px;padding:3px 8px;border:1px solid var(--bd);border-radius:6px;background:rgba(255,255,255,.95);font-size:12px;font-weight:600;text-align:center}
+.slider-label input[type=range]{width:100%;margin:0}
+.mini{border:1px solid var(--bd);border-radius:6px;background:rgba(255,255,255,.95);padding:5px}
+.mini-title{margin:0 0 4px;font-size:11px;font-weight:600;color:#24964a;display:flex;align-items:center;gap:6px}
+.pvzoom{margin-left:auto;height:24px;width:24px;padding:0;font-size:12px;line-height:1;border-radius:4px;text-align:center}
+#miniBox.expanded{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(88vw,1080px);z-index:40;box-shadow:0 18px 60px rgba(20,40,60,.28);background:#fff;padding:10px}
+#miniBox.expanded #preview{max-height:74vh!important;width:100%}
+.pv-backdrop{position:fixed;inset:0;background:rgba(20,35,45,.35);z-index:39}
+#preview{display:block;width:100%;height:auto;border-radius:4px;background:#eef4fb}
+.vps{border:1px solid var(--bd);border-radius:6px;background:rgba(255,255,255,.95);padding:5px 6px}
+.vps-title{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#c2453c;margin-bottom:4px}
+.vps-title em{font-style:normal;font-weight:400;color:#888}
+.vps-title button{margin-left:auto;height:24px;font-size:11px;padding:0 7px;border-radius:5px}
+.vp-row{display:grid;grid-template-columns:20px 1fr 34px 18px;align-items:center;gap:3px;font-size:11px;margin-top:3px}
+.vp-row b{color:#c2453c;font-weight:600}
+.vp-row input[type=range]{width:100%;margin:0;height:14px}
+.vp-row span{text-align:right;color:#777;font-variant-numeric:tabular-nums}
+.vp-row button{height:24px;width:24px;padding:0;text-align:center;font-size:13px;line-height:1;border-radius:5px}
+.vp-hint{margin:5px 0 0;font-size:10px;line-height:1.45;color:#8a8a8a}
+.note.wide{max-height:40dvh!important;font-size:11.5px}.note{padding:8px 10px;border:1px solid var(--bd);border-radius:6px;background:rgba(255,255,255,.96);font-size:12px;line-height:1.55;color:#222;flex:none;overflow:auto;max-height:38dvh}
+@media(max-width:820px){:root{--panel:174px}.page-title{font-size:18px}.page-sub{font-size:11px}#preview{max-height:150px;object-fit:cover}.note{font-size:11px}}
+@media(max-width:560px){:root{--panel:158px}.three button,.two button{font-size:10px;padding:0 1px}.page-title{font-size:16px;top:10px}.page-sub{display:none}.stage-label{top:34px;left:12px;font-size:11px}.hint{left:12px;font-size:11px}button{font-size:11px;height:26px}.slider-label{height:40px}#preview{max-height:120px;object-fit:cover}}
+@media(max-height:830px){#preview{max-height:96px}.mini{padding:4px}.mini-title{margin:0 0 2px}.panel{gap:5px}.panel-scroll{gap:4px}button{height:24px;font-size:11.5px}.slider-label{height:36px}.vps{padding:4px 5px}.vp-row{margin-top:2px}.vp-hint{display:none}.note{max-height:22dvh;font-size:11.5px;padding:6px 9px}}
+@media(max-height:700px){.mini{display:none}.note{max-height:20dvh}}
+</style></head>
+<body>
+<div id="viewport"><canvas id="scene"></canvas><canvas id="overlay"></canvas></div>
+<div class="failure" id="failure">请使用支持 WebGL 的浏览器打开</div>
+<div class="page-title">庭园一点透视</div>
+<div class="page-sub">《透视图的基本画法》的进一步举例 · 同一个院子，走一遍完整作图</div>
+<div class="stage-label" id="stageLabel">平行投影 · 俯视图 · 基面 H</div>
+<div class="hint" id="hint">视距 3.80 m · 视高 1.65 m · FOV 100°</div>
+<aside class="panel">
+  <div class="panel-scroll">
+    <div class="mini" id="miniBox"><p class="mini-title"><span>成图预览 · 画面 K</span><button id="pvZoom" type="button" class="pvzoom" aria-label="放大预览">⤢</button></p><canvas id="preview" width="320" height="200" aria-label="成图预览"></canvas></div>
+    <div class="button-group" id="steps"></div>
+    <div class="three"><button id="prev" type="button">上一步</button><button id="play" type="button">播放</button><button id="next" type="button">下一步</button></div>
+    <div class="three" id="viewRow"><button type="button" data-mode="auto">按步骤</button><button type="button" data-mode="plan">平面</button><button type="button" data-mode="orbit">三维</button></div>
+    <div class="slider-row"><button id="fovMinus" type="button" aria-label="视角减一度">−</button><label class="slider-label"><span id="fovValue">视角 FOV 100°</span><input id="fovSlider" type="range" min="1" max="180" step="1" value="100" aria-label="视角"></label><button id="fovPlus" type="button" aria-label="视角加一度">＋</button></div>
+    <div class="slider-row"><button id="eyeMinus" type="button" aria-label="视高减五厘米">−</button><label class="slider-label"><span id="eyeValue">视高 1.65 m</span><input id="eyeSlider" type="range" min="0.8" max="2.5" step="0.01" value="1.65" aria-label="视高"></label><button id="eyePlus" type="button" aria-label="视高加五厘米">＋</button></div>
+    <div class="vps"><div class="vps-title">灭点 <em id="vpCount">1 个有限灭点</em></div><div id="vpList"></div><p class="vp-hint" id="vpHint">灭点由视点和方向推导。</p></div>
+    <div class="slider-row"><button id="distMinus" type="button" aria-label="视距减二十厘米">−</button><label class="slider-label"><span id="distValue">视距 3.80 m</span><input id="distSlider" type="range" min="2.5" max="8" step="0.05" value="3.8" aria-label="视点到物体的距离"></label><button id="distPlus" type="button" aria-label="视距加二十厘米">＋</button></div>
+    <div class="slider-row"><button id="orbitMinus" type="button" aria-label="逆时针环绕五度">−</button><label class="slider-label"><span id="orbitValue">环绕 0°</span><input id="orbitSlider" type="range" min="-60" max="60" step="1" value="0" aria-label="视点绕场地旋转"></label><button id="orbitPlus" type="button" aria-label="顺时针环绕五度">＋</button></div>
+    <div class="two"><button id="coneBtn" type="button" aria-pressed="false">显示视锥</button><button id="vpHide" type="button">隐藏灭点</button></div>
+    <div class="two"><button id="labelBtn" type="button">隐藏标注</button><button id="auxBtn" type="button">隐藏辅助线</button><button id="exampleBtn" type="button">显示实物示例</button><button id="resetBtn" type="button">归位</button></div>
+  </div>
+  <div class="note" id="note">1）布局：把院子搬进画面。</div>
+</aside>
+<script>
+'use strict';
+const $=s=>document.querySelector(s),canvas=$('#scene'),overlay=$('#overlay'),ctx=overlay.getContext('2d');
+const gl=canvas.getContext('webgl',{antialias:true,alpha:true,preserveDrawingBuffer:true});
+let W=1,H=1,dpr=1,camera,dirty=true,playTimer=null,meshDirty=true,meshes={},program,buffers={};
+const V={add:(a,b)=>a.map((v,i)=>v+b[i]),sub:(a,b)=>a.map((v,i)=>v-b[i]),mul:(a,k)=>a.map(v=>v*k),dot:(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0),cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],unit:a=>{const n=Math.hypot(...a);return a.map(v=>v/(n||1))}};
+function rgba(hex,alpha=1){return [parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255,alpha]}
+const C={stone:rgba('#edece5'),white:rgba('#f7f6f0'),edge:rgba('#6a7775'),ground:rgba('#f2f1ea'),soil:rgba('#999684'),green:rgba('#71957e'),green2:rgba('#a3b39a'),dark:rgba('#527464'),wood:rgba('#8d7e68'),water:rgba('#5eabc1'),blue:rgba('#279bde'),red:rgba('#d85950'),paleBlue:rgba('#b6dced')};
+function group(){return {tri:[],line:[]}}
+function triangle(g,a,b,c,color){const n=V.unit(V.cross(V.sub(b,a),V.sub(c,a)));for(const p of [a,b,c])g.tri.push(...p,...n,...color)}
+function quad(g,a,b,c,d,color){triangle(g,a,b,c,color);triangle(g,a,c,d,color)}
+function line(g,a,b,color=C.edge){g.line.push(...a,0,1,0,...color,...b,0,1,0,...color)}
+function outline(g,pts,col=C.edge){for(let i=0;i<pts.length;i++)line(g,pts[i],pts[(i+1)%pts.length],col)}
+function box(g,x,y,z,w,h,d,col=C.stone,edges=true){const a=[x,y,z],b=[x+w,y,z],c=[x+w,y,z+d],e=[x,y,z+d],f=[x,y+h,z],j=[x+w,y+h,z],k=[x+w,y+h,z+d],l=[x,y+h,z+d];quad(g,a,e,c,b,col);quad(g,f,j,k,l,col);quad(g,a,b,j,f,col);quad(g,b,c,k,j,col);quad(g,c,e,l,k,col);quad(g,e,a,f,l,col);if(edges){outline(g,[f,j,k,l]);outline(g,[a,b,c,e]);for(const [p,q]of [[a,f],[b,j],[c,k],[e,l]])line(g,p,q)}}
+function cylinder(g,x,y,z,r,h,col,n=32,rTop=r,edges=true){for(let i=0;i<n;i++){const a=i/n*Math.PI*2,b=(i+1)/n*Math.PI*2,p=[x+Math.cos(a)*r,y,z+Math.sin(a)*r],q=[x+Math.cos(b)*r,y,z+Math.sin(b)*r],u=[x+Math.cos(a)*rTop,y+h,z+Math.sin(a)*rTop],v=[x+Math.cos(b)*rTop,y+h,z+Math.sin(b)*rTop];quad(g,p,q,v,u,col);triangle(g,[x,y+h,z],u,v,col);if(edges){line(g,u,v);line(g,p,q)}}}
+function ring(g,x,y,z,ro,ri,h,col,n=48){for(let i=0;i<n;i++){const a=i/n*2*Math.PI,b=(i+1)/n*2*Math.PI,at=(r,yy,t)=>[x+r*Math.cos(t),yy,z+r*Math.sin(t)],p=at(ro,y,a),q=at(ro,y,b),u=at(ro,y+h,a),v=at(ro,y+h,b),f=at(ri,y+h,a),j=at(ri,y+h,b);quad(g,p,q,v,u,col);quad(g,u,v,j,f,col);quad(g,f,j,at(ri,y,b),at(ri,y,a),col);line(g,u,v);line(g,f,j);line(g,p,q)}}
+function ellipsoid(g,x,y,z,rx,ry,rz,col,segments=10,rings=6,wire=false){for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){const at=(u,v)=>{const a=u/segments*2*Math.PI,b=v/rings*Math.PI;return [x+rx*Math.cos(a)*Math.sin(b),y+ry*Math.cos(b),z+rz*Math.sin(a)*Math.sin(b)]},a=at(i,j),b=at(i+1,j),c=at(i+1,j+1),d=at(i,j+1);quad(g,a,b,c,d,col);if(wire&&j!==0&&j!==rings-1)line(g,a,b,rgba('#678374'))}}
+function branch(g,a,b,r,col=C.wood){const v=V.unit(V.sub(b,a)),u=V.unit(V.cross(v,Math.abs(v[1])>.9?[1,0,0]:[0,1,0])),w=V.cross(v,u);for(let i=0;i<7;i++){const t=i/7*Math.PI*2,s=(i+1)/7*Math.PI*2,at=(p,k,t)=>V.add(p,V.add(V.mul(u,Math.cos(t)*k),V.mul(w,Math.sin(t)*k)));quad(g,at(a,r,t),at(a,r,s),at(b,r*.56,s),at(b,r*.56,t),col)}}
+let seed=17;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+function tree(g,x,z,h,r,base=0){const trunk=h*.66;branch(g,[x,base,z],[x+.03,base+trunk,z+.02],.05);for(let i=0;i<7;i++){const a=i*2.4,yy=base+h*(.47+i*.05),b=[x+Math.cos(a)*r*.62,yy+.36,z+Math.sin(a)*r*.62];branch(g,[x,yy-.25,z],b,.028);for(let j=0;j<4;j++){const cx=b[0]+(rnd()-.5)*r*.65,cy=b[1]+(rnd()-.35)*r*.55,cz=b[2]+(rnd()-.5)*r*.65;ellipsoid(g,cx,cy,cz,r*.32,r*.39,r*.32,j%2?C.green:C.green2,8,5)}}ellipsoid(g,x,base+h-r*.23,z,r*.49,r*.5,r*.49,C.green2,10,5)}
+function shrub(g,x,z,r,h,base=.12){for(let i=0;i<5;i++){const a=i*2.4,rr=r*(.3+rnd()*.3);ellipsoid(g,x+Math.cos(a)*rr,base+h*.55+(rnd()-.5)*h*.2,z+Math.sin(a)*rr,r*.52,h*.5,r*.52,i%2?C.green:C.green2,8,5)}}
+function tuft(g,x,z,r,h,base=.12){for(let i=0;i<9;i++){const a=i*2.4,b=[x+Math.cos(a)*r,base+h*(.55+rnd()*.45),z+Math.sin(a)*r],mid=[x+Math.cos(a)*r*.5,base+h*.7,z+Math.sin(a)*r*.5],p=[x,base,z],u=[mid[0]-Math.sin(a)*.036,mid[1],mid[2]+Math.cos(a)*.036],v=[mid[0]+Math.sin(a)*.036,mid[1],mid[2]-Math.cos(a)*.036];triangle(g,p,u,v,C.dark);triangle(g,u,b,v,C.green)}}
+function build(){seed=17;meshes={floor:group(),grid:group(),bed:group(),body:group(),plants:group(),water:group(),construction:group(),eye:group(),sight:group(),plan:group(),plane:group(),height:group(),person:group()};const {floor,grid,bed,body,plants,water,construction,eye:eyeGroup,sight,plan,plane,height,person}=meshes;
+box(floor,-3,-.065,0,6,.065,6,C.ground,false);outline(floor,[[-3,.004,0],[3,.004,0],[3,.004,6],[-3,.004,6]],rgba('#9aaba7'));
+for(let i=0;i<=8;i++){const x=-3+i*.75,z=i*.75;line(grid,[x,.012,0],[x,.012,6],state.step>=7&&state.step<=9?C.blue:rgba('#acb5ad'));line(grid,[-3,.012,z],[3,.012,z],state.step>=7&&state.step<=9?C.blue:rgba('#acb5ad'))}
+box(bed,-2.93,.013,0,1.64,.10,1.05,C.soil);box(bed,-2.92,.013,5.05,5.86,.1,.88,C.soil);box(bed,1.55,.013,2.65,1.38,.1,2.42,C.soil);
+box(body,-3.11,0,0,.16,state.wall,6.1,C.stone);box(body,-3.11,0,5.94,6.22,.92,.16,C.stone);box(body,2.96,0,0,.1,.14,5.94,C.stone);
+box(body,1.49,0,2.59,.17,.48,2.47,C.white);box(body,1.49,0,4.90,1.48,.48,.17,C.white);
+box(body,2.20,.05,.67,.58,.39,1.75,C.stone);box(body,2.13,.44,.61,.75,.12,1.88,C.white);box(body,2.86,.46,.65,.07,.42,1.80,C.stone);
+box(body,-2.91,.02,2.78,.53,.4,1.04,C.stone);box(body,-2.96,.42,2.72,.67,.12,1.16,C.white);
+box(body,-2.91,.02,4.36,3.04,.4,.48,C.stone);box(body,-2.96,.42,4.30,3.14,.12,.63,C.white);
+ring(body,-2.03,.02,1.86,.73,.61,.31,C.white);ring(body,-2.03,.31,1.86,.75,.59,.065,C.white);cylinder(water,-2.03,.27,1.86,.592,.005,C.water,48,.592,false);cylinder(body,-2.03,.27,1.86,.095,.06,C.stone,16,.095,false);cylinder(water,-2.03,.32,1.86,.105,.69,rgba('#a4dbe1'),20,.065,false);ellipsoid(water,-2.03,1.01,1.86,.065,.12,.065,rgba('#bde4e7'),12,6);
+for(let i=0;i<8;i++){const a=i*Math.PI/4;line(water,[-2.03+Math.cos(a)*.085,.34,1.86+Math.sin(a)*.085],[-2.03+Math.cos(a)*.05,1.03,1.86+Math.sin(a)*.05],rgba('#d8f1f1'))}
+for(const r of [.25,.40,.51]){for(let i=0;i<48;i++){const a=i/48*Math.PI*2,b=(i+1)/48*Math.PI*2;line(water,[-2.03+Math.cos(a)*r,.281,1.86+Math.sin(a)*r],[-2.03+Math.cos(b)*r,.281,1.86+Math.sin(b)*r],rgba('#c2e1e4'))}}
+shrub(plants,-2.13,.49,.52,.52,.12);tree(plants,2.04,5.46,3.85,.98,.12);tree(plants,-.63,5.49,2.07,.58,.12);tree(plants,.43,5.46,1.68,.49,.12);
+for(const [x,z,r,h]of [[-2.28,5.52,.55,1.1],[-1.50,5.42,.43,.82],[.10,5.65,.45,1.15],[1.06,5.63,.48,1.35],[2.31,4.82,.36,.85],[2.31,4.14,.36,.85],[2.31,3.47,.36,.85],[2.31,2.9,.32,.76]])shrub(plants,x,z,r,h);
+for(let i=0;i<18;i++)tuft(plants,-2.9+(i%6)*.26,.11+Math.floor(i/6)*.34,.19,.29+rnd()*.21);
+for(let i=0;i<26;i++)tuft(plants,1.72+(i%4)*.33,2.79+Math.floor(i/4)*.34,.2,.35+rnd()*.2);
+for(let i=0;i<20;i++)tuft(plants,-2.72+i*.29,5.13,.19,.35+rnd()*.15);
+shrub(plants,-2.32,5.5,.43,.6);
+buildPerson(person);
+
+const o=observerFrame(),eye=o.eye,tip=V.add(eye,V.mul(o.forward,1.45));
+ellipsoid(eyeGroup,...eye,.10,.10,.10,C.red,14,7);
+line(eyeGroup,[state.eyeX,0,-state.distance],eye,rgba('#d7978e'));
+line(sight,eye,tip,C.red);const base=V.sub(tip,V.mul(o.forward,.28));triangle(sight,tip,V.add(base,V.mul(o.right,.12)),V.sub(base,V.mul(o.right,.12)),C.red);
+for(const p of [[-3,0,6],[3,0,6],[-3,state.wall,6],[3,.92,6]])line(construction,eye,worldPoint(p),rgba('#9b6bd3'));
+if(state.step>=3)line(construction,eye,planePoint(0,state.eye),rgba('#24964a'));
+const planeW=3.7,planeH=3.65,at=(u,y)=>planePoint(u,y,-.025);
+quad(plane,at(-planeW,0),at(planeW,0),at(planeW,planeH),at(-planeW,planeH),rgba('#c8e7f2',.15));outline(plane,[at(-planeW,0),at(planeW,0),at(planeW,planeH),at(-planeW,planeH)],rgba('#e5483c'));
+line(plan,planePoint(-3.7,.025),planePoint(3.7,.025),rgba('#111111'));
+for(const item of visibleHeightItems()){const g=heightGeometryFor(item);if(!g)continue;line(height,g.a,g.b,C.red);if(state.step===9){line(height,g.a,g.base,rgba('#d9887e'));line(height,g.b,g.top,rgba('#d9887e'));if(g.vp)line(height,g.b,g.vp,rgba('#d9887e'));line(height,g.base,g.top,C.red)}}
+meshDirty=false;uploadMeshes();}
+function compile(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
+function initGL(){if(!gl){$('#failure').style.display='flex';return}program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,'attribute vec3 aPosition;attribute vec3 aNormal;attribute vec4 aColor;uniform mat4 uMatrix;uniform mat4 uModel;uniform float uUnlit;varying vec4 vColor;void main(){vec3 n=normalize(mat3(uModel)*aNormal);float light=mix(.72+.28*abs(dot(n,normalize(vec3(-.45,.86,-.4)))),1.0,uUnlit);vColor=vec4(aColor.rgb*light,aColor.a);gl_Position=uMatrix*uModel*vec4(aPosition,1.0);}'));gl.attachShader(program,compile(gl.FRAGMENT_SHADER,'precision mediump float;varying vec4 vColor;uniform float uOpacity;uniform vec4 uTint;uniform float uTintMix;void main(){gl_FragColor=vec4(mix(vColor.rgb,uTint.rgb,uTintMix),vColor.a*uOpacity);}'));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);program.pos=gl.getAttribLocation(program,'aPosition');program.normal=gl.getAttribLocation(program,'aNormal');program.color=gl.getAttribLocation(program,'aColor');program.matrix=gl.getUniformLocation(program,'uMatrix');program.model=gl.getUniformLocation(program,'uModel');program.unlit=gl.getUniformLocation(program,'uUnlit');program.opacity=gl.getUniformLocation(program,'uOpacity');program.tint=gl.getUniformLocation(program,'uTint');program.tintMix=gl.getUniformLocation(program,'uTintMix');gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.clearColor(0,0,0,0)}
+function uploadMeshes(){if(!gl)return;for(const [name,g]of Object.entries(meshes)){buffers[name]??={};for(const kind of ['tri','line']){buffers[name][kind]??=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffers[name][kind]);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(g[kind]),gl.STATIC_DRAW)}}}
+function identity(){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])}
+function multiply(a,b){const r=new Float32Array(16);for(let c=0;c<4;c++)for(let row=0;row<4;row++)for(let k=0;k<4;k++)r[c*4+row]+=a[k*4+row]*b[c*4+k];return r}
+function viewMatrix(eye,target){const z=V.unit(V.sub(eye,target)),x=V.unit(V.cross(z,[0,1,0])),y=V.cross(x,z);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-V.dot(x,eye),-V.dot(y,eye),-V.dot(z,eye),1])}
+function perspective(fov,aspect,n=.05,f=150){const s=1/Math.tan(fov/2);return new Float32Array([s/aspect,0,0,0,0,s,0,0,0,0,(f+n)/(n-f),-1,0,0,2*f*n/(n-f),0])}
+function orthographic(w,h){return new Float32Array([2/w,0,0,0,0,2/h,0,0,0,0,-2/100,0,0,0,-1,1])}
+function modelMatrix(){if(Math.abs(state.angle)<.01)return identity();const t=state.angle*Math.PI/180,c=Math.cos(t),s=Math.sin(t);return new Float32Array([c,0,-s,0,0,1,0,0,s,0,c,0,-3*s,0,3-3*c,1])}
+
+function worldPoint(p){const t=state.angle*Math.PI/180,c=Math.cos(t),s=Math.sin(t);return [c*p[0]+s*(p[2]-3),p[1],-s*p[0]+c*(p[2]-3)+3]}
+function axisZ(){const t=state.angle*Math.PI/180;return [Math.sin(t),0,Math.cos(t)]}
+function axisX(){const t=state.angle*Math.PI/180;return [Math.cos(t),0,-Math.sin(t)]}
+function observerFrame(){const a=state.heading*Math.PI/180,forward=[Math.sin(a),0,Math.cos(a)],right=[Math.cos(a),0,-Math.sin(a)],eye=[state.eyeX,state.eye,-state.distance],centre=V.add(eye,V.mul(forward,state.distance));centre[1]=0;return {eye,forward,right,centre}}
+function planePoint(u,y,offset=0){const o=observerFrame(),p=V.add(o.centre,V.add(V.mul(o.right,u),V.mul(o.forward,offset)));p[1]=y;return p}
+function vanishingPoint(direction,offset=0){const o=observerFrame(),den=V.dot(direction,o.forward);if(Math.abs(den)<.0001)return null;return V.add(o.eye,V.mul(direction,(state.distance+offset)/den))}
+function heightItems(){return [[-3,0,0,state.wall,'高墙'],[-2.03,0,1.86,1.13,'喷泉'],[2.13,0,.61,.56,'座凳']]}
+function heightGeometryFor(item){const o=observerFrame(),base=worldPoint(item.slice(0,3)),top=V.add(base,[0,item[3],0]),dir=axisZ(),den=V.dot(dir,o.forward);if(Math.abs(den)<.03)return null;const a=V.add(base,V.mul(dir,V.dot(V.sub(o.centre,base),o.forward)/den));return {base,top,a,b:V.add(a,[0,item[3],0]),vp:vanishingPoint(dir),name:item[4],h:item[3]}}
+function visibleHeightItems(){return heightItems()}
+
+/* ================= 状态与步骤 ================= */
+let orbitPlaneD=null;
+let tintMode=false;
+function planeDist(){return orbitPlaneD===null?state.distance:orbitPlaneD}
+const state={step:1,view:'plan',mode:'auto',eyeX:0,heading:0,eye:1.65,distance:3.8,wall:3,angle:0,fov:100,orbitDeg:0,orbitR:8.5,showVP:true,yaw:-.57,pitch:.53,zoom:1,pan:[0,0],planPan:[0,0],orbitTarget:null,tempOrbit:false,observer:true,grid:true,horizon:false,rays:false,height:false,plants:true,plane:true,labels:true,aux:true,example:false,cone:false,range:false};
+
+const defaults={
+1:{grid:true,horizon:false,rays:false,height:false,plants:true,plane:true,example:false,showVP:true},
+2:{grid:true,horizon:false,rays:true,height:false,plants:false,plane:true,example:false,showVP:true},
+3:{grid:false,horizon:true,rays:false,height:false,plants:false,plane:true,example:true,showVP:true},
+4:{grid:false,horizon:true,rays:false,height:false,plants:false,plane:true,example:false,showVP:true},
+5:{grid:false,horizon:true,rays:false,height:false,plants:false,plane:true,example:false,showVP:true},
+6:{grid:false,horizon:true,rays:false,height:false,plants:false,plane:true,example:false,showVP:true},
+7:{grid:true,horizon:true,rays:false,height:false,plants:false,plane:true,example:false,showVP:true},
+8:{grid:true,horizon:true,rays:false,height:true,plants:false,plane:true,example:false,showVP:true},
+9:{grid:true,horizon:true,rays:false,height:true,plants:false,plane:true,example:true,showVP:true},
+10:{grid:false,horizon:false,rays:false,height:false,plants:true,plane:false,example:false,showVP:false}
+};
+const STEPS=[
+{n:1,short:'布局',title:'布局：庭院平面与画面',note:'1）布局：把院子搬进画面。院落 6 m × 6 m，画面 K 取在庭园近侧边线上，这条 6 m 的边就是基线 O–X——它在画面上没有任何变形，是后面所有尺寸的出发点。'},
+{n:2,short:'视点视角',title:'视点：视高、视距与视角',note:'2）视点与视角：视点 s 立在画面外 3.80 m、眼高 1.65 m，视线垂直于画面，垂足就是主点；视角 FOV 决定能看到多宽。俯视图里可以直接拖动 s 和朝向箭头。'},
+{n:3,short:'视平灭点',title:'视平线与主灭点',note:'3）视平线与主灭点：视高定出视平线 h；纵深方向的平行线在画面上交于主灭点 V，横向线仍然水平——这就是一点透视。灭点离主点多远？＝视距×tanθ，θ 是该方向与「画面法线」（正对画面的那条线）的夹角：θ＝0° 就落在主点，θ＝90°（平行于画面）跑到无穷远。庭院这两组边正好一个 0°、一个 90°，所以只有 1 个有限灭点。'},
+{n:4,short:'基线分格',title:'基线等距分格',note:'4）基线等距分格：基线上量到的是真长。把近侧 6 m 的边按 0.75 m 等分成 8 格，这就是横向的量尺。'},
+{n:5,short:'灭点 M',title:'第三条方向：场地对角线的灭点 M',note:'5）灭点 M：院墙只有纵深、横向两组边，所以前面的灭点只有 1 个有限的（另一个在无穷远）。M 是第三条方向——场地对角线（45°）——的灭点，不属于墙，所以不矛盾。怎么求：对角线上 P₁ P₂ P₃ 越退越远，视线越平，交点 p₁ p₂ p₃ 一路挤向同一点；退到无穷远时视线与对角线平行，那个极限就是 M。有什么用：横向有基线真长，纵向被压缩，而 45° 线上横竖等长——各格点连 M，就把真长折成了进深。M 离主点＝视距×tan45°＝一个视距。注意：M 只服务一点透视 —— 两点透视里两组边都斜过画面、都有迹点，直接用两个灭点拉网格，不用 M。'},
+{n:6,short:'进深刻度',title:'连接灭点 M，取得进深刻度',note:'6）进深刻度：各分格点连 M，线穿过画面左端纵深线的地方，就是 0.75、1.5 …… 6 m 的进深位置。过这些点画水平线，地面网格就成形了。'},
+{n:7,short:'完成网格',title:'过交点画横线，完成网格',note:'7）完成地面网格：过各进深刻度画水平线，与纵深分格一起构成地面网格——它就是透视里的“地板尺”，院里每个点都能在上面定位。'},
+{n:8,short:'高度刻度',title:'照基线分格的样子，给高度也刻上刻度',note:'8）高度刻度：横向靠基线 0.75 m 分格量，竖向就得靠真高线量。在庭园近处立一根竖直的真高线，从 0 起按 0.50 m 等分——竖向的量尺也备好了，1.65 m 那一格正好落在视高上。'},
+{n:9,short:'真高成体',title:'按高度刻度立起各物件',note:'9）真高成体：有了高度刻度，院墙 3.00 m、喷泉 1.13 m、座凳 0.56 m 都不用猜——从刻度上量出高度平移到各自的真高线上，庭园就立了起来。'},
+{n:10,short:'成体收尾',title:'成体与收尾',note:'10）收尾：点「隐藏辅助线」只看成品。横向靠基线分格、进深靠灭点 M、竖向靠高度刻度——三把尺合起来，院子里的东西就都落到位了。'}
+];
+/* ================= 相机 ================= */
+function effectiveView(){if(state.mode==='plan')return 'plan';if(state.mode==='orbit')return 'orbit';if(state.step<=2)return 'plan';if(state.step===5)return isTwoPointView()?'picture':'plan';return 'picture'}
+function setCamera(force){state.view=force||effectiveView();const aspect=W/H;let eye,target,projection;
+if(state.view==='plan'){const bb=[[-3,0],[3,0],[-3,6],[3,6]];if(Math.abs(state.orbitDeg||0)>0.5){const th=(state.orbitDeg||0)*Math.PI/180,RR=Math.max(4,Math.min(22,state.orbitR||10));bb.push([-Math.sin(th)*RR,3-Math.cos(th)*RR])}else bb.push([state.eyeX,-state.distance]);let mnX=1e9,mxX=-1e9,mnZ=1e9,mxZ=-1e9;for(const q of bb){mnX=Math.min(mnX,q[0]);mxX=Math.max(mxX,q[0]);mnZ=Math.min(mnZ,q[1]);mxZ=Math.max(mxZ,q[1])}const h=Math.max(11.5,(mxZ-mnZ)*1.24,(mxX-mnX)*1.24/aspect)/state.zoom;const cx=(mnX+mxX)/2+state.planPan[0],cz=(mnZ+mxZ)/2+state.planPan[1];eye=[cx,18,cz];target=[cx,0,cz];projection=orthographic(h*aspect,h);camera={eye,target,ortho:true,width:h*aspect,height:h};camera.view=new Float32Array([1,0,0,0,0,0,1,0,0,1,0,0,-cx,-cz,-18,1]);}
+else if(state.view==='picture'){const o=observerFrame();eye=o.eye;target=V.add(eye,V.mul(o.forward,6));const fdeg=Math.min(179,Math.max(1,state.fov)),focal=Math.max(8,(W/2)/Math.tan(fdeg*Math.PI/360));projection=perspective(2*Math.atan(H/(2*focal)),aspect);camera={eye,target,focal,ortho:false};camera.view=viewMatrix(eye,target);}
+else{const r=14/state.zoom;target=state.orbitTarget||[0,1,1.9];eye=[target[0]+Math.sin(state.yaw)*Math.cos(state.pitch)*r,target[1]+Math.sin(state.pitch)*r,target[2]-Math.cos(state.yaw)*Math.cos(state.pitch)*r];const fov=Math.PI/4.1;projection=perspective(fov,aspect);camera={eye,target,focal:H/(2*Math.tan(fov/2)),ortho:false};camera.view=viewMatrix(eye,target);}
+camera.matrix=multiply(projection,camera.view);camera.model=modelMatrix();}
+function drawGroup(name,mode){const g=meshes[name];if(!g||!buffers[name]||!gl)return;const pvGrey=tintMode&&name==='plants';for(const kind of mode?[mode]:['tri','line']){if(!g[kind].length)continue;gl.bindBuffer(gl.ARRAY_BUFFER,buffers[name][kind]);gl.enableVertexAttribArray(program.pos);gl.enableVertexAttribArray(program.normal);gl.enableVertexAttribArray(program.color);gl.vertexAttribPointer(program.pos,3,gl.FLOAT,false,40,0);gl.vertexAttribPointer(program.normal,3,gl.FLOAT,false,40,12);gl.vertexAttribPointer(program.color,4,gl.FLOAT,false,40,24);gl.uniform1f(program.unlit,(kind==='line'||tintMode)?1:0);if(tintMode){gl.uniform1f(program.tintMix,1);if(kind==='tri')gl.uniform4f(program.tint,pvGrey?0.90:1,pvGrey?0.91:1,pvGrey?0.89:1,1);else gl.uniform4f(program.tint,.30,.35,.35,1)}else gl.uniform1f(program.tintMix,0);if(kind==='tri'){gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1,1)}else gl.disable(gl.POLYGON_OFFSET_FILL);gl.drawArrays(kind==='tri'?gl.TRIANGLES:gl.LINES,0,g[kind].length/10)}}
+function dynamicGroup(name,g){meshes[name]=g;buffers[name]??={};for(const kind of ['tri','line']){buffers[name][kind]??=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffers[name][kind]);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(g[kind]),gl.DYNAMIC_DRAW)}}
+function flatten(p,model=true){const o=observerFrame(),world=model?worldPoint(p):p,v=V.sub(world,o.eye),den=V.dot(v,o.forward);if(den<=.04)return null;return V.add(o.eye,V.mul(v,(planeDist()-.055)/den))}
+
+/* ================= 屏幕投影 ================= */
+function project(p,model=true){let a=[...p,1],m=model?multiply(camera.matrix,camera.model):camera.matrix,q=[0,0,0,0];for(let i=0;i<4;i++)for(let j=0;j<4;j++)q[i]+=m[j*4+i]*a[j];if(q[3]<=.03)return null;return {x:(q[0]/q[3]+1)*W/2+state.pan[0],y:(1-q[1]/q[3])*H/2+state.pan[1],depth:q[2]/q[3]}}
+function screenLine(a,b,color,width=1,dash=[]){if(!a||!b)return;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([])}
+function label(text,p,color='#111',align='left'){if(!state.labels||!p)return;if(p.x<0||p.x>W||p.y<22||p.y>H-16)return;ctx.font='12px Arial,"Noto Sans SC","Microsoft YaHei",sans-serif';ctx.textAlign=align;ctx.textBaseline='middle';const w=ctx.measureText(text).width,x=align==='center'?p.x-w/2-5:align==='right'?p.x-w-5:p.x-5;ctx.fillStyle='#ffffffdd';ctx.fillRect(x,p.y-9,w+10,18);ctx.fillStyle=color;ctx.fillText(text,p.x,p.y)}
+function dimension(a,b,text){const p=project(a),q=project(b);if(!p||!q)return;screenLine(p,q,'#9aa9a4',1);const dx=q.x-p.x,dy=q.y-p.y,L=Math.hypot(dx,dy)||1,nx=-dy/L*5,ny=dx/L*5;for(const v of [p,q])screenLine({x:v.x-nx,y:v.y-ny},{x:v.x+nx,y:v.y+ny},'#9aa9a4',1);label(text,{x:(p.x+q.x)/2,y:(p.y+q.y)/2-12},'#657b7c','center')}
+
+/* ================= 视锥 / 视域 ================= */
+function coneGeometry(){const o=observerFrame(),half=Math.min(89,Math.max(1,state.fov/2))*Math.PI/180,r=planeDist()*Math.tan(half);return {o,r,left:V.add(o.eye,V.add(V.mul(o.forward,planeDist()),V.mul(o.right,-r))),right:V.add(o.eye,V.add(V.mul(o.forward,planeDist()),V.mul(o.right,r)))}}
+function arcSpan(a1,a2){while(a2<a1)a2+=Math.PI*2;if(a2-a1>Math.PI){const t=a1;a1=a2;a2=t+Math.PI*2}return [a1,a2]}
+function drawPlanCone(){const {o,left,right}=coneGeometry(),e=project(o.eye,false),a=project(left,false),b=project(right,false);if(!e||!a||!b)return;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.closePath();ctx.fillStyle='rgba(36,150,74,.08)';ctx.fill();screenLine(e,a,'#24964a',1.2);screenLine(e,b,'#24964a',1.2);const R=Math.min(80,Math.max(30,Math.hypot(a.x-e.x,a.y-e.y)*.45)),span=arcSpan(Math.atan2(a.y-e.y,a.x-e.x),Math.atan2(b.y-e.y,b.x-e.x));ctx.beginPath();ctx.arc(e.x,e.y,R,span[0],span[1]);ctx.strokeStyle='#24964a';ctx.lineWidth=1.2;ctx.stroke();const mid=span[0]+(span[1]-span[0])*.2;label(Math.round(state.fov)+'°',{x:e.x+Math.cos(mid)*(R+20),y:e.y+Math.sin(mid)*(R+20)},'#24964a','center')}
+function drawPlanRange(){const {left,right}=coneGeometry(),a=project(left,false),b=project(right,false);if(!a||!b)return;screenLine(a,b,'#f3a6c5',4);label('视域',{x:(a.x+b.x)/2,y:a.y-13},'#d95f8a','center')}
+function drawPictureRange(){const R=(camera&&camera.focal?camera.focal:Math.min(W*.40,H*.65))*Math.tan(state.fov*Math.PI/360),cx=W/2+state.pan[0],cy=H/2+state.pan[1];ctx.save();ctx.beginPath();ctx.rect(0,0,W,H);ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.34)';ctx.fill('evenodd');ctx.restore();ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.strokeStyle='#f3a6c5';ctx.lineWidth=2;ctx.setLineDash([7,6]);ctx.stroke();ctx.setLineDash([]);label('视域 FOV '+Math.round(state.fov)+'°',{x:cx,y:Math.max(26,cy-R+18)},'#d95f8a','center')}
+
+/* ================= 三维辅助线 ================= */
+function drawSpatialGuides(){const g=group(),o=observerFrame();
+if(state.horizon&&state.view!=='picture'){line(g,planePoint(-3.7,state.eye,-.05),planePoint(3.7,state.eye,-.05),rgba('#0b57ff'));const p=vanishingPoint(axisZ(),-.05);if(p)ellipsoid(g,...p,.055,.055,.04,C.red,12,6)}
+if(state.grid&&state.plane&&state.step>=7&&state.step<=9){for(let i=0;i<=8;i++){const x=-3+i*.75,z=i*.75,a=flatten([x,0,0]),b=flatten([x,0,6]),c=flatten([-3,0,z]),d=flatten([3,0,z]);if(a&&b)line(g,a,b,C.blue);if(c&&d)line(g,c,d,C.blue)}}
+dynamicGroup('spatialGuides',g);drawGroup('spatialGuides')}
+
+/* ================= 人物示例 ================= */
+function personPlace(){return [-1.55,0,3.35]}
+function buildPerson(g){const pos=personPlace(),x=pos[0],z=pos[2],eye=state.eye,t=eye/.94,body=rgba('#ffd4df'),edge=rgba('#d98fa2');
+const hip=.47*t,shoulder=.82*t,headR=.066*t,headC=.935*t;
+cylinder(g,x-.085,0,z,.058,hip,body,14,.05);
+cylinder(g,x+.085,0,z,.058,hip,body,14,.05);
+cylinder(g,x,hip-.02,z,.105,.31*t,body,18,.135);
+ellipsoid(g,x,headC,z,headR,headR*1.12,headR*.96,body,14,7);
+branch(g,[x-.115,shoulder,z],[x-.165,hip+.03,z+.05],.042,edge);
+branch(g,[x+.115,shoulder,z],[x+.165,hip+.03,z+.05],.042,edge);
+line(g,[x-.23,eye,z+.08],[x+.23,eye,z+.08],edge);}
+
+/* ================= 作图线 ================= */
+const SCALE_U=-3.55,SCALE_MAX=3.5,SCALE_STEP=.5;
+function planeAt(u,y){const o=observerFrame();const p=V.add(o.centre,V.mul(o.right,u));p[1]=y;return p}
+function drawHeightScale(){
+const rows=[];for(let y=0;y<=SCALE_MAX+1e-9;y+=SCALE_STEP)rows.push({y,p:project(planeAt(SCALE_U,y),false)});
+const ok=rows.filter(r=>r.p);if(ok.length<3)return;
+const x=ok[0].p.x;
+screenLine(ok[0].p,ok[ok.length-1].p,'#111111',2.2);
+for(const r of ok){
+screenLine({x:x-6,y:r.p.y},{x:x+6,y:r.p.y},'#111111',1.3);
+if(state.labels)label(r.y.toFixed(1),{x:x-13,y:r.p.y},'#555555','right');
+}
+const ep=project(planeAt(SCALE_U,state.eye),false);
+if(ep){screenLine({x:x-15,y:ep.y},{x:x+15,y:ep.y},'#e5483c',2.2);label('视高 '+state.eye.toFixed(2)+' m',{x:x+21,y:ep.y-32},'#c2453c')}
+if(state.labels)label('每格 '+SCALE_STEP.toFixed(2)+' m',{x:x,y:ok[0].p.y+19},'#555555','center');
+}
+function drawHeightConstruction(){
+for(const item of visibleHeightItems()){
+const g=heightGeometryFor(item);if(!g)continue;
+const a=project(g.a,false),b=project(g.b,false);if(!a||!b)continue;
+screenLine(a,b,'#e5483c',2.4);
+screenLine({x:a.x-7,y:a.y},{x:a.x+7,y:a.y},'#e5483c',1.4);
+screenLine({x:b.x-7,y:b.y},{x:b.x+7,y:b.y},'#e5483c',1.4);
+const src=project(planeAt(SCALE_U,item[3]),false);
+if(src)screenLine(src,b,'#e8a39a',1.1,[5,4]);
+label(item[4]+' '+item[3].toFixed(2)+' m ≈ '+(item[3]/state.eye).toFixed(2)+'×视高',{x:b.x+12,y:b.y-11},'#c2453c');
+}
+}
+
+/* ================= 地面作图：基线 · 迹点 · 灭点 =================
+   核心：一条地面直线 L 的像 = 「L 与画面 K 的交点（迹点 T）」→「L 方向的灭点 V」这条直线。
+   所以：迹点连灭点 = 网格线。两组的迹点都存在 → 一点/两点都成立。
+   只有「平行于画面」的那组线没有迹点（永远撞不到画面），才需要 45° 对角线灭点 M。            */
+function vpOfDir(dir){const o=observerFrame(),den=V.dot(dir,o.forward);if(Math.abs(den)<1e-4)return null;return {p:V.add(o.eye,V.mul(dir,planeDist()/den)),deg:Math.atan2(V.dot(dir,o.right),den)*180/Math.PI}}
+function traceOnK(a,b){const o=observerFrame(),A=worldPoint(a),B=worldPoint(b),da=V.dot(V.sub(A,o.eye),o.forward),db=V.dot(V.sub(B,o.eye),o.forward),den=db-da;if(Math.abs(den)<1e-7)return null;return V.add(A,V.mul(V.sub(B,A),(planeDist()-da)/den))}
+function baselineScreenY(){const o=observerFrame(),f=[o.eye[0]+o.forward[0]*planeDist(),0,o.eye[2]+o.forward[2]*planeDist()],p=project(f,false);return p?p.y:null}
+function groundSegs(){const out=[];for(let i=0;i<=8;i++){const v=-3+i*.75;out.push({fam:'z',a:[v,0,0],b:[v,0,6]})}for(let i=0;i<=8;i++){const v=i*.75;out.push({fam:'x',a:[-3,0,v],b:[3,0,v]})}return out}
+function isTwoPointView(){try{return !!(vpOfDir(axisZ())&&vpOfDir(axisX()))}catch(e){return false}}
+function rawLabel(text,p,color='#111',align='left'){if(!state.labels)return;ctx.font='12px Arial,"Noto Sans SC","Microsoft YaHei",sans-serif';ctx.textAlign=align;ctx.textBaseline='middle';const w=ctx.measureText(text).width,x=align==='center'?p.x-w/2-5:align==='right'?p.x-w-5:p.x-5,y=Math.max(12,Math.min(H-12,p.y));ctx.fillStyle='#ffffffdd';ctx.fillRect(x,y-9,w+10,18);ctx.fillStyle=color;ctx.fillText(text,p.x,y)}
+function dotMark(p,color,size=3.6){ctx.beginPath();ctx.arc(p.x,p.y,size,0,Math.PI*2);ctx.fillStyle=color;ctx.fill()}
+function onCanvas(p){return !!p&&p.x>=4&&p.x<=W-4&&p.y>=4&&p.y<=H-4}
+function edgeMark(p,text,color){const ex=Math.max(14,Math.min(W-14,p.x)),ey=Math.max(18,Math.min(H-18,p.y));let ang=Math.atan2(p.y-ey,p.x-ex);if(!isFinite(ang)||(Math.abs(ang)<.2&&Math.abs(p.x-ex)<1))ang=p.x<W/2?Math.PI:0;ctx.beginPath();ctx.moveTo(ex+Math.cos(ang)*10,ey+Math.sin(ang)*10);ctx.lineTo(ex+Math.cos(ang+2.5)*10,ey+Math.sin(ang+2.5)*10);ctx.lineTo(ex+Math.cos(ang-2.5)*10,ey+Math.sin(ang-2.5)*10);ctx.closePath();ctx.fillStyle=color;ctx.fill();const left=Math.cos(ang)<0;rawLabel(text,{x:ex+(left?14:-14),y:ey-Math.sin(ang)*11},color,left?'left':'right')}
+function tickMark(p,color='#111111'){if(!p)return;screenLine({x:p.x,y:p.y-5},{x:p.x,y:p.y+5},color,1.3);dotMark(p,color,2.4)}
+function drawBaselineRow(){const y=baselineScreenY();if(y===null)return null;if(y<-4||y>H+4)return y;screenLine({x:0,y},{x:W,y},'#111111',2.2);if(y>44&&y<H-26){const above=y>40?y-23:y+20;rawLabel('基线 O–X（画面与地面相交 · 真长）',{x:20,y:above},'#333333','left')}return y}
+
+function drawGridConstruction(){
+const vpZ=vpOfDir(axisZ()),vpX=vpOfDir(axisX()),two=!!(vpZ&&vpX);
+const yb=drawBaselineRow();
+const items=groundSegs().map(s=>{const fa=flatten(s.a),fb=flatten(s.b),T=traceOnK(s.a,s.b),vp=(s.fam==='z'?vpZ:vpX);
+return {s,vp:vp&&project(vp.p,false),pt:T&&project(T,false),pa:fa&&project(fa,false),pb:fb&&project(fb,false)}});
+if(two)drawGridTwo(items,yb);else drawGridOne(items,vpZ);
+}
+
+/* 一点透视：纵深那组垂直于画面 → 迹点就是基线上的分格点；横向那组平行于画面 → 无迹点，用 M */
+function drawGridOne(items,vpZ){
+const v=vpZ&&project(vpZ.p,false);
+const mpv=vanishingPoint(V.sub(axisZ(),axisX()),-.055),mp=mpv&&project(mpv,false);
+for(let i=0;i<=8;i++){
+const q=items[i].pt;if(!q)continue;
+tickMark(q);
+if(state.step<=6)label((i*.75).toFixed(2),{x:q.x,y:q.y+17},'#555555','center');
+if(v&&state.step>=5&&state.step<=7)screenLine(q,v,'#f3a6c5',.8,[4,4]);
+}
+if(state.step===4){const mid=items[4].pt;if(mid)label('近侧边 6 m · 分 8 格 = 迹点',{x:mid.x,y:mid.y+42},'#555555','center')}
+if(v&&mp&&state.step>=6&&state.step<=7){
+screenLine(v,mp,'#9b6bd3',1.5,[5,4]);
+if(onCanvas(mp)){dotMark(mp,'#9b6bd3',5.2);label('灭点 M · 场地对角线 45°',{x:mp.x+12,y:mp.y-17},'#8b5cc7')}
+else edgeMark(mp,'灭点 M（在画面外）','#8b5cc7');
+for(let i=1;i<=8;i++){
+const q=items[i].pt,hf=flatten([-3,0,i*.75]),hit=hf&&project(hf,false);
+if(q)screenLine(q,mp,'#caa8e6',.9,[4,4]);
+if(hit){dotMark(hit,'#9b6bd3',3.2);label(String(i),{x:hit.x-9,y:hit.y},'#8b5cc7','right')}
+if(hit&&state.step>=7){const ef=flatten([3,0,i*.75]),ep=ef&&project(ef,false);if(ep)screenLine(hit,ep,'#279bde',1.6)}
+}
+}
+}
+
+/* 两点透视：两组边都斜过画面 → 两组迹点都存在 → 迹点连各自灭点，网格直接拉出来，不需要 M */
+function drawGridTwo(items,yb){
+const CZ='#d8587f',CX='#6d55bd',i18={z:0,x:0};
+for(const it of items){
+const n=i18[it.s.fam]++;
+const col=it.s.fam==='z'?CZ:CX;
+tickMark(it.pt,state.step<=4?col:'#111111');
+if(state.step===4){if(it.pt&&it.vp&&n===8)screenLine(it.pt,it.vp,col,1.1,[7,5])}
+else if(state.step===6||state.step===7){if(it.pt&&it.vp)screenLine(it.pt,it.vp,it.s.fam==='z'?'#f3a6c5':'#b9a4e6',1,[5,4])}
+if(state.step>=6&&it.pa&&it.pb)screenLine(it.pa,it.pb,it.s.fam==='z'?'#279bde':'#5b9fe0',1.5);
+}
+if(state.step===4){const th=Math.abs(state.orbitDeg||0)*Math.PI/180,sz=Math.abs(0.75/Math.max(.2,Math.cos(th))),sx=Math.abs(0.75/Math.max(.2,Math.sin(th)));
+rawLabel('基线上的迹点：粉＝纵深组 9 个、间距 0.75÷cosθ＝'+sz.toFixed(2)+' m；紫＝横向组 9 个、间距 0.75÷sinθ＝'+sx.toFixed(2)+' m（两组都从最近角出发）',{x:W/2,y:H-58},'#333333','center')}
+if(state.step===5)rawLabel('两组边都斜过画面 → 各自都有迹点，直接连灭点；M 只服务一点透视',{x:W/2,y:H-58},'#8b5cc7','center');
+if(state.step===6)rawLabel('迹点连各自灭点：纵深线 → V₁，横向线 → V₂　（蓝线 = 拉出来的网格线）',{x:W/2,y:H-58},'#333333','center');
+}
+
+/* 视点/视角不合适时，直接说清楚，不留“看不见”的假象 */
+function fitNotice(){
+if(!state.labels)return;
+const msgs=[],yb=baselineScreenY();
+if(yb===null||yb>H+30||yb<-30)msgs.push('基线与迹点跑到画面外（FOV '+Math.round(state.fov)+'° 太小）');
+let out=0;
+for(const c of [[-3,0,0],[3,0,0],[-3,0,6],[3,0,6]]){const p=project(worldPoint(c),false);if(!p||p.x<34||p.x>W-34||p.y<56||p.y>H-34)out++}
+if(out)msgs.push('院子有 '+out+'/4 个角出画');
+if(isTwoPointView()){
+const th=Math.abs(state.orbitDeg||0);
+const inF=p=>p&&p.x>2&&p.x<W-2&&p.y>2&&p.y<H-2;
+let offT=0;for(const s of groundSegs()){const T=traceOnK(s.a,s.b);if(!T)continue;if(!inF(project(T,false)))offT++}
+if(offT>=12)msgs.push(offT+'/18 个迹点出画（环绕角 '+Math.round(th)+'° 偏大）');
+}else{
+const mpv=vanishingPoint(V.sub(axisZ(),axisX()),-.055),mp=mpv&&project(mpv,false);
+if(mp&&(mp.x<0||mp.x>W))msgs.push('灭点 M 在画面外（FOV '+Math.round(state.fov)+'° < 90°）');
+}
+if(!msgs.length)return;
+rawLabel(msgs.join(' · ')+'　→ 加大视角 FOV 或拉远视距',{x:W/2,y:H-26},'#c2453c','center');
+}
+
+function drawMethod(){
+if(!state.aux||state.step<4||state.step>10)return;
+if(state.view!=='picture')return;
+if(state.step===10)return;
+drawGridConstruction();
+if(state.step>=8)drawHeightScale();
+if(state.step>=9)drawHeightConstruction();
+}
+
+const NOTE_TP={
+2:'2）视点与视角：视高 1.65 m 定住视平线的高度；环绕角是视线与场地正面的夹角——一转过 0°，两组边就都斜过画面，画面从此变成两点透视。环绕半径就是视点到场地的远近，半径越大，同样 6 m 的院子在画面里越小。',
+3:'3）视平线与灭点：灭点离主点的距离 = 视距 × tanθ，θ 是该方向与画面法线的夹角，全由视点和方向算出来。视点绕开 44° 后，纵、横两组边都与画面斜交，各自有一个有限灭点 V₁、V₂——这就是两点透视。θ 越大，灭点离主点越远。',
+4:'4）基线分格：基线是画面与地面相交的那条线，在画面里是一条水平线，长度不缩短、可以直接量。把每根网格线延长，它撞上画面的位置就是「迹点」——图上基线上的小刻度，两组各一串。注意：环绕后画面切在最近的角点上，基线不再与院子近边重合；两组迹点各自等距，但间距是 0.75÷cosθ 与 0.75÷sinθ，不是 0.75 m 本身——迹点给的是位置，格距要按角度折算。',
+5:'5）灭点 M 只服务一点透视：一点透视里横向那组线平行于画面，永远撞不到画面，拿不到迹点，只好借场地对角线（45°，灭点 M）把横向真长折成进深。现在视点绕到侧面，两组边都斜过画面、各自都撞得到画面、各有迹点——直接用两个灭点，不需要 M。',
+6:'6）连灭点：迹点连它那一组的灭点——纵深那组连 V₁，横向那组连 V₂。两个灭点就是两把方向尺，这一拉，两组网格线的位置和方向同时定下来——每条线只用两个点：一个迹点、一个灭点。',
+7:'7）完成网格：两组蓝线一叠就是地面网格，和正对时得到的是同一张「地板尺」，只是视点角度不同。',
+8:'8）高度刻度：地面有了尺，竖向还得有把尺——在庭园近处立一根真高线，从 0 起按 0.50 m 等分，1.65 m 那一格正好落在视高上。两点透视里竖直方向仍然竖直线、刻度仍然等分，所以这条尺照用。',
+9:'9）真高成体：从高度刻度上量出各物件的高，平移到各自的真高线上——院墙 3.00 m、喷泉 1.13 m、座凳 0.56 m 都不用猜。',
+10:'10）收尾：点「隐藏辅助线」只看成品。地面靠基线迹点与灭点拉出网格、竖向靠高度刻度——两把尺合起来，院子里的东西就都落到位了。'
+};
+function dirAtAngle(thDeg){const o=observerFrame(),th=thDeg*Math.PI/180;return V.unit(V.add(V.mul(o.forward,Math.cos(th)),V.mul(o.right,-Math.sin(th))))}
+function vpOnPicture(thDeg){const o=observerFrame(),d=dirAtAngle(thDeg),t=planeDist()/Math.max(.05,V.dot(d,o.forward));return V.add(o.eye,V.mul(d,t))}
+function parallelConstruction(){
+const o=observerFrame(),dir=dirAtAngle(45);
+const t=planeDist()/Math.max(.05,V.dot(dir,o.forward));
+const mPoint=V.add(o.eye,V.mul(dir,t));
+const past=V.add(o.eye,V.mul(dir,t+1.7));
+const eye=[o.eye[0],0,o.eye[2]];
+const A=[3,0,0],B=[-3,0,6];
+const toPicture=P=>{const v=V.sub(P,o.eye),u=(0-o.eye[2])/(v[2]||1e-6);const q=V.add(o.eye,V.mul(v,u));q[1]=0;return q};
+const sight=[.30,.62,1.05].map(tt=>{const P=[A[0]+(B[0]-A[0])*tt,0,A[2]+(B[2]-A[2])*tt];return {P,img:toPicture(P)}});
+return {eye,mPoint,past,altPoint:vpOnPicture(-33),foot:[o.centre[0],0,o.centre[2]],diagA:A,diagB:B,sight};
+}
+/* ================= 视点环绕 / 灭点推导 ================= */
+function observerFrame(){
+const a=state.heading*Math.PI/180;
+if(Math.abs(state.orbitDeg||0)<.01){
+const forward=[Math.sin(a),0,Math.cos(a)],right=[Math.cos(a),0,-Math.sin(a)],eye=[state.eyeX,state.eye,-state.distance];orbitPlaneD=null;
+const centre=V.add(eye,V.mul(forward,state.distance));centre[1]=0;
+return {eye,forward,right,centre};
+}
+const th=(state.orbitDeg||0)*Math.PI/180;
+const forward=[Math.sin(th),0,Math.cos(th)],right=[Math.cos(th),0,-Math.sin(th)];
+const R=Math.max(4,Math.min(22,state.orbitR||10));
+const ex=-Math.sin(th)*R,ez=3-Math.cos(th)*R,eye=[ex,state.eye,ez];
+let D=1e9;
+for(const c of [[-3,0],[3,0],[-3,6],[3,6]]){const dep=(c[0]-ex)*forward[0]+(c[1]-ez)*forward[2];if(dep<D)D=dep}
+D=Math.max(D,.9);
+orbitPlaneD=D;
+const centre=[ex+forward[0]*D,0,ez+forward[2]*D];
+return {eye,forward,right,centre};
+}
+function vanishingPoint(direction,offset=0){const o=observerFrame(),den=V.dot(direction,o.forward);if(Math.abs(den)<.0001)return null;return V.add(o.eye,V.mul(direction,(planeDist()+offset)/den))}
+function edgeDirections(){
+const a=state.angle*Math.PI/180;
+return [{d:[Math.sin(a),0,Math.cos(a)],name:'V₁',label:'纵深边'},{d:[Math.cos(a),0,-Math.sin(a)],name:'V₂',label:'横向边'}];
+}
+function derivedVPs(){
+const o=observerFrame(),out=[];
+for(const it of edgeDirections()){
+let den=V.dot(it.d,o.forward),dir=it.d;
+if(den<0){den=-den;dir=V.mul(it.d,-1)}
+if(Math.abs(den)<.02){out.push({name:it.name,label:it.label,infinite:true,dir});continue}
+const t=planeDist()/den,p=V.add(o.eye,V.mul(dir,t));
+const deg=Math.atan2(V.dot(dir,o.right),den)*180/Math.PI;
+out.push({name:it.name,label:it.label,infinite:false,dir,p,deg,dist:Math.abs(planeDist()*Math.tan(deg*Math.PI/180))});
+}
+return out;
+}
+function vpAt(){return -1}
+function setVPAngle(){}
+function drawVPs(){
+if(!state.showVP||state.view!=='picture')return;
+const vps=derivedVPs(),dirs=edgeDirections();
+for(let i=0;i<vps.length;i++){
+const vp=vps[i];if(vp.infinite)continue;
+const p=project(vp.p,false);if(!p)continue;
+const dir=vp.dir||dirs[i].d,lat=[dir[2],0,-dir[0]];
+if(state.step<=4)for(const off of [-1.8,0,1.8]){
+const st=[lat[0]*off,0,lat[2]*off],en=[st[0]+dir[0]*42,0,st[2]+dir[2]*42];
+const qa=project(worldPoint(st),false),qb=project(worldPoint(en),false);
+if(qa&&qb)screenLine(qa,qb,'#e58fa8',1,[6,5]);
+}
+const tx1=vp.name+' · '+vp.label,tx2='θ '+Math.abs(vp.deg).toFixed(1)+'°　距主点 '+vp.dist.toFixed(2)+' m';
+if(onCanvas(p)){
+ctx.beginPath();ctx.arc(p.x,p.y,8.5,0,Math.PI*2);ctx.strokeStyle='rgba(229,72,60,.3)';ctx.lineWidth=1;ctx.stroke();
+ctx.beginPath();ctx.arc(p.x,p.y,4.6,0,Math.PI*2);ctx.fillStyle='#e5483c';ctx.fill();
+const right=p.x<W-240;label(tx1,{x:right?p.x+14:p.x-14,y:p.y-17},'#c2453c',right?'left':'right');
+label(tx2,{x:right?p.x+14:p.x-14,y:p.y+19},'#c2453c',right?'left':'right');
+}else edgeMark(p,tx1+'　'+tx2,'#c2453c');
+}
+if(vps.some(v=>v.infinite))rawLabel('另一组边平行于画面 → 灭点在无穷远（一点透视）',{x:W-14,y:36},'#c2453c','right');
+}
+function syncVPValues(){
+let list=[];try{list=derivedVPs()}catch(e){list=[]}
+const finite=list.filter(v=>!v.infinite).length;
+const c=$('#vpCount');if(c)c.textContent=finite+' 个有限灭点';
+const box=$('#vpList');
+if(box){box.innerHTML='';for(const v of list){
+const row=document.createElement('div');row.className='vp-row';
+const bb=document.createElement('b');bb.textContent=v.name;row.appendChild(bb);
+const sp=document.createElement('span');sp.style.gridColumn='2 / 4';sp.style.textAlign='left';
+sp.textContent=v.infinite?'无穷远（平行于画面）':('θ '+Math.abs(v.deg).toFixed(1)+'° · 距主点 '+v.dist.toFixed(2)+' m');
+row.appendChild(sp);box.appendChild(row)}}
+const hint=$('#vpHint');
+if(hint)hint.textContent=finite>=2?'两组边都斜过画面 → 两个灭点 V₁、V₂。网格直接把基线上的迹点连到各自的灭点就拉出来了，M（45° 对角线）只服务一点透视，这里不需要。':'正对场地：只剩主点处一个有限灭点（另一组边平行画面，灭点在无穷远）。第 5 步的 M 是场地对角线（45°）的灭点，不属于这两组边。灭点离主点＝视距×tanθ，θ＝该方向与画面法线的夹角。';
+}
+function renderVPList(){syncVPValues()}
+function addVP(){}
+/* ================= 覆盖层 ================= */
+
+/* ================= 图例（颜色说明） ================= */
+function legendRows(){
+const rows=[],two=isTwoPointView();
+if(state.step>=10||!state.aux)return rows;
+if(state.view==='plan'){
+rows.push({c:'#e5483c',w:2.2,t:'画面 K — 透视成像用的竖直面'});
+if(state.rays)rows.push({c:'#d98980',w:1,t:'视线 — 视点连到院子各点（画面外的部分先转平）'});
+if(state.step===2)rows.push({c:'#24964a',w:1.2,t:'视锥 — 视角 FOV 框出的可见范围'});
+if(state.step===2)rows.push({c:'#24964a',w:1.4,dash:[6,5],t:'视距 — 视点到画面 K 的垂直距离'});
+if(state.step===5){
+rows.push({c:'#c9b7e8',w:1.5,dash:[7,5],t:'场地对角线 45° — 平行于它的视线定出 M'});
+rows.push({c:'#7fa8bb',w:1.3,t:'p₁ p₂ p₃ — 对角线上远点的像，越退越挤向 M'});
+rows.push({c:'#9b6bd3',w:2.4,t:'灭点 M — 45° 方向的灭点，离主点一个视距'});
+}
+rows.push({c:'#d85f54',w:0,dot:true,t:'视点 s / 主点 s′ — 眼睛位置 / 它在画面上的垂足'});
+}else{
+rows.push({c:'#0b57ff',w:1.5,t:'视平线 h — 与眼睛同高的水平线'});
+if(state.step<=4)rows.push({c:'#e58fa8',w:1,dash:[6,5],t:'方向辅助线 — 平行于某组边的地面线，延长交于灭点'});
+if(state.step>=4){
+rows.push({c:'#111111',w:2.2,t:'基线 O–X — 画面与地面相交的线（真长）'});
+rows.push({c:'#111111',w:1.3,t:'迹点 — 每根网格线撞上画面的位置'});
+}
+if(state.step>=4&&state.step<=7){
+if(two){
+rows.push({c:'#f3a6c5',w:1,dash:[5,4],t:'构造射线：迹点 → V₁（纵深那组线）'});
+rows.push({c:'#b9a4e6',w:1,dash:[5,4],t:'构造射线：迹点 → V₂（横向那组线）'});
+}else{
+rows.push({c:'#f3a6c5',w:.8,dash:[4,4],t:'构造射线：分格点 → 主灭点 V₁（纵深线）'});
+rows.push({c:'#caa8e6',w:1,dash:[4,4],t:'M 辅助：分格点 → M，折出进深'});
+rows.push({c:'#9b6bd3',w:1.5,dash:[5,4],t:'主灭点 V₁ → M：一个视距'});
+}
+}
+if(state.step>=6)rows.push({c:'#279bde',w:1.6,t:'网格线 — 迹点连灭点拉出来的结果'});
+if(state.step>=8)rows.push({c:'#111111',w:2.2,t:'高度刻度 — 0.50 m 一格的真高线'});
+if(state.step>=9)rows.push({c:'#e5483c',w:2.4,t:'真高线 — 量高度→平移到各物件'});
+if(state.showVP)rows.push({c:'#e5483c',w:0,dot:true,t:'灭点 V — 红点，旁边标 θ 与距主点'});
+}
+return rows;
+}
+function drawLegend(){
+if(!state.labels)return;
+if(W<520||H<560)return;
+const rows=legendRows();if(!rows.length)return;
+ctx.save();
+ctx.font='11px Arial,"Noto Sans SC","Microsoft YaHei",sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+let tw=0;for(const r of rows)tw=Math.max(tw,ctx.measureText(r.t).width);
+const x=16,y=96,bw=Math.min(W-32,tw+52),bh=rows.length*17+12;
+ctx.fillStyle='rgba(255,255,255,.90)';ctx.strokeStyle='#d3dad7';ctx.lineWidth=1;
+ctx.beginPath();ctx.rect(x,y,bw,bh);ctx.fill();ctx.stroke();
+rows.forEach((r,i)=>{
+const cy=y+8+i*17+8;
+ctx.setLineDash(r.dash||[]);ctx.strokeStyle=r.c;ctx.lineWidth=r.w||1.6;
+if(r.w!==0){ctx.beginPath();ctx.moveTo(x+10,cy);ctx.lineTo(x+34,cy);ctx.stroke()}
+ctx.setLineDash([]);
+if(r.dot){ctx.beginPath();ctx.arc(x+22,cy,3.2,0,6.2832);ctx.fillStyle=r.c;ctx.fill()}
+ctx.fillStyle='#3a3a3a';ctx.fillText(r.t,x+42,cy);
+});
+ctx.restore();
+}
+
+function observerVisible(){return state.step<10&&state.observer&&state.view!=='picture'&&Math.hypot(...V.sub(camera.eye,observerFrame().eye))>.25}
+function drawExampleMark(){if(!state.example||state.view==='plan')return;const pos=personPlace(),eye=project([pos[0],state.eye,pos[2]]),foot=project([pos[0],0,pos[2]]);if(!eye||!foot)return;screenLine(eye,foot,'#d98fa2',1.2,[4,4]);label('眼高 '+state.eye.toFixed(2)+' m',{x:eye.x,y:eye.y-44},'#c86a86','center')}
+function drawObserverHandle(){const o=observerFrame(),eye=project(o.eye,false),tip=project(V.add(o.eye,V.mul(o.forward,1.45)),false);for(const p of [eye,tip]){if(!p)continue;ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fillStyle='#fffffff0';ctx.fill();ctx.strokeStyle='#cb665b';ctx.lineWidth=1.4;ctx.stroke()}if(eye){ctx.beginPath();ctx.arc(eye.x,eye.y,3,0,Math.PI*2);ctx.fillStyle='#d85f54';ctx.fill();label('视点 s',{x:eye.x+13,y:eye.y},'#c2453c')}if(tip)label('朝向',{x:tip.x+12,y:tip.y},'#c2453c')}
+function drawPictureHorizon(){const y=H/2+state.pan[1];if(!state.horizon)return;screenLine({x:0,y},{x:W,y},'#0b57ff',1.5);label('视平线 h',{x:18,y:y-15},'#2f6fe0')}
+function renderOverlay(){ctx.clearRect(0,0,W,H);
+if(state.view==='plan'){
+if(state.step<=2||state.step===5){
+const pl=project(planePoint(-3.7,0),false),pr=project(planePoint(3.7,0),false);
+screenLine(pl,pr,'#e5483c',2.2);label('画面 K',{x:pr.x+12,y:pr.y},'#e5483c');
+dimension([-3,0,6.35],[3,0,6.35],'6 m');dimension([3.55,0,0],[3.55,0,6],'6 m');
+}
+if(state.step===5){
+const k=parallelConstruction();
+const se=project(k.eye,false);
+const da=project(worldPoint(k.diagA),false),db=project(worldPoint(k.diagB),false);
+if(da&&db){screenLine(da,db,'#c9b7e8',1.5,[7,5]);label('场地对角线 · 45°',{x:(da.x+db.x)/2,y:(da.y+db.y)/2-14},'#9b86c9','center')}
+if(se)k.sight.forEach((it,i)=>{
+const P=project(worldPoint(it.P),false),img=project(it.img,false);
+if(!P||!img)return;
+screenLine(se,P,'#b7c3c8',1);
+ctx.beginPath();ctx.arc(P.x,P.y,3.2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#93a1a7';ctx.lineWidth=1.2;ctx.stroke();
+label('P'+(i+1),{x:P.x+9,y:P.y-10},'#7b8a90');
+ctx.beginPath();ctx.arc(img.x,img.y,3.2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#7fa8bb';ctx.lineWidth=1.3;ctx.stroke();
+label('p'+(i+1),{x:img.x,y:img.y+14},'#6b8b98','center');
+});
+const foot=project(k.foot,false);
+if(se&&foot){screenLine(se,foot,'#24964a',1.1,[6,5]);label('主点 s′',{x:foot.x+9,y:foot.y-13},'#24964a')}
+const sp=project(k.past,false);
+if(se&&sp)screenLine(se,sp,'#9b6bd3',2.3);
+const m=project(k.mPoint,false);
+if(se&&m){
+ctx.beginPath();ctx.arc(m.x,m.y,5.5,0,Math.PI*2);ctx.fillStyle='#9b6bd3';ctx.fill();
+label('对角线灭点 M',{x:m.x-12,y:m.y-15},'#8b5cc7','right');
+label('过 s 作对角线的平行线',{x:(se.x+sp.x)/2-14,y:(se.y+sp.y)/2-20},'#8b5cc7','right');
+}
+const alt=null;
+if(false){
+
+ctx.beginPath();ctx.arc(alt.x,alt.y,4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#a8848c';ctx.lineWidth=1.3;ctx.stroke();
+}
+}
+if(state.step===2){const o=observerFrame(),c=project(o.centre,false),e=project(o.eye,false);
+if(e&&c){
+screenLine(e,c,'#24964a',1.2,[6,5]);label('主点 s′',{x:c.x+9,y:c.y-13},'#24964a');
+const dx=c.x-e.x,dy=c.y-e.y,L=Math.hypot(dx,dy)||1,nx=dy/L,ny=-dx/L,off=30;
+const a={x:e.x+nx*off,y:e.y+ny*off},b={x:c.x+nx*off,y:c.y+ny*off};
+if(a.x<12){a.x=e.x-nx*off;b.x=c.x-nx*off;}
+screenLine(a,b,'#24964a',1);for(const q of [a,b])screenLine({x:q.x-nx*6,y:q.y-ny*6},{x:q.x+nx*6,y:q.y+ny*6},'#24964a',1.2);
+const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,txt='视距 '+planeDist().toFixed(2)+' m';
+if(state.labels&&mx>0&&mx<W&&my>22&&my<H-16){
+ctx.save();ctx.translate(mx,my);ctx.rotate(-Math.PI/2);
+ctx.font='12px Arial,"Noto Sans SC","Microsoft YaHei",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+const tw=ctx.measureText(txt).width;ctx.fillStyle='#ffffffdd';ctx.fillRect(-tw/2-5,-9,tw+10,18);
+ctx.fillStyle='#24964a';ctx.fillText(txt,0,0);ctx.restore();}
+}}
+if(state.cone)drawPlanCone();
+if(state.range)drawPlanRange();
+}
+
+if(state.view==='picture')drawPictureHorizon();
+if(state.view==='picture'&&state.step>=3&&state.step<=9)fitNotice();
+drawMethod();
+drawVPs();
+if(state.example)drawExampleMark();
+if(observerVisible())drawObserverHandle();
+drawLegend();
+}
+
+/* ================= 渲染 ================= */
+function ghostScene(names,faceAlpha,edgeAlpha){gl.uniform1f(program.opacity,faceAlpha);for(const n of names)drawGroup(n);gl.uniform1f(program.opacity,edgeAlpha);for(const n of names)drawGroup(n,'line');gl.uniform1f(program.opacity,1)}function render(){if(!gl)return;if(meshDirty)build();setCamera();gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);gl.uniformMatrix4fv(program.matrix,false,camera.matrix);gl.uniformMatrix4fv(program.model,false,camera.model);gl.uniform1f(program.opacity,1);
+const early=state.step<=2,solid=early||state.step>=10,spatial=state.view!=='picture';
+if(early||state.step>=3){
+if(solid){drawGroup('floor');drawGroup('bed');drawGroup('body');drawGroup('water')}
+else if(state.step>=7){drawGroup('floor');ghostScene(['bed','body','water'],.05,.55)}
+else if(state.step===3)ghostScene(['floor','bed','body','water'],.13,.85);
+else ghostScene(['floor','bed','body','water'],.10,.72);
+if(state.grid&&(early||state.step>=7))drawGroup('grid');
+if(state.plants&&(early||state.step>=10))drawGroup('plants')}
+if(state.example&&state.view!=='plan')drawGroup('person');
+gl.uniformMatrix4fv(program.model,false,identity());
+if(spatial){if(observerVisible()){drawGroup('eye');drawGroup('sight')}if(state.rays&&state.step>=2)drawGroup('construction');if(state.step===2&&state.view==='plan')drawGroup('plan');if(state.plane&&state.step>=2&&state.view==='orbit'){gl.depthMask(false);drawGroup('plane');gl.depthMask(true)}if(state.step>=3)drawSpatialGuides()}
+if(state.height&&state.step>=9)drawGroup('height');
+renderOverlay();dirty=false}
+function loop(){if(dirty){render();renderPreview()}requestAnimationFrame(loop)}
+function stop(){clearInterval(playTimer);playTimer=null;$('#play').textContent='播放'}
+function resize(){const r=$('#viewport').getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);dpr=Math.min(devicePixelRatio||1,2);for(const c of [canvas,overlay]){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}ctx.setTransform(dpr,0,0,dpr,0,0);dirty=true}
+
+/* ================= 面板 ================= */
+function updateUI(){const s=state.step;
+document.querySelectorAll('[data-step-button]').forEach(b=>{const on=Number(b.dataset.stepButton)===s;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
+const st=STEPS.find(x=>x.n===s);$('#note').classList.toggle('wide',s===5);let nt=st?st.note:'';try{if(NOTE_TP[s]&&isTwoPointView())nt=NOTE_TP[s]}catch(e){}$('#note').textContent=nt;
+$('#prev').disabled=s===1;$('#next').disabled=s===10;$('#play').textContent=playTimer?'暂停':'播放';
+$('#orbitValue').textContent='环绕 '+Math.round(state.orbitDeg)+'°';$('#orbitSlider').value=Math.round(state.orbitDeg);try{syncVPValues()}catch(e){}const inOrb=Math.abs(state.orbitDeg)>0.5,dsl=$('#distSlider');
+if(inOrb){dsl.min=5;dsl.max=20;dsl.step=.5;dsl.value=state.orbitR;$('#distValue').textContent='环绕半径 '+Number(state.orbitR).toFixed(1)+' m';}
+else{dsl.min=2.5;dsl.max=8;dsl.step=.05;dsl.value=state.distance;$('#distValue').textContent='视距 '+state.distance.toFixed(2)+' m';}
+dsl.disabled=false;
+$('#fovValue').textContent='视角 FOV '+Math.round(state.fov)+'°';$('#fovSlider').value=Math.round(state.fov);
+$('#eyeValue').textContent='视高 '+state.eye.toFixed(2)+' m';$('#eyeSlider').value=state.eye;
+document.querySelectorAll('[data-mode]').forEach(b=>{const on=b.dataset.mode===state.mode;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
+const setBtn=(sel,on,text)=>{const b=$(sel);b.textContent=text;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')};
+setBtn('#coneBtn',state.cone,state.cone?'隐藏视锥':'显示视锥');
+setBtn('#vpHide',!state.showVP,state.showVP?'隐藏灭点':'显示灭点');
+
+setBtn('#labelBtn',!state.labels,state.labels?'隐藏标注':'显示标注');
+setBtn('#auxBtn',!state.aux,state.aux?'隐藏辅助线':'显示辅助线');
+setBtn('#exampleBtn',state.example,state.example?'隐藏实物示例':'显示实物示例');
+$('#hint').textContent='视距 '+planeDist().toFixed(2)+' m · 视高 '+state.eye.toFixed(2)+' m · FOV '+Math.round(state.fov)+'°';
+document.body.classList.toggle('picture',state.view==='picture');
+const sl=$('#stageLabel');sl.textContent=state.view==='plan'?'平行投影 · 俯视图 · 基面 H':state.view==='orbit'?'轴测 · 三维推敲 · 画面 K':'透视投影 · 前视图 · 画面 K';
+sl.style.color=state.view==='picture'?'#e5483c':state.view==='plan'?'#24964a':'#333'}
+function setStep(n,auto=false){if(!auto)stop();const before=effectiveView();state.step=Math.max(1,Math.min(10,Math.round(n)));Object.assign(state,defaults[state.step]);state.cone=(state.step===2);state.tempOrbit=false;if(state.mode==='auto'&&before!==effectiveView()){state.zoom=1;state.pan=[0,0]}state.view=effectiveView();meshDirty=true;dirty=true;updateUI()}
+function setMode(mode){stop();state.mode=mode;state.tempOrbit=false;state.view=effectiveView();state.zoom=1;state.pan=[0,0];dirty=true;updateUI()}
+function togglePlay(){if(playTimer){stop();return}if(state.step===10)setStep(1);$('#play').textContent='暂停';playTimer=setInterval(()=>{if(state.step===10){stop();return}setStep(state.step+1,true)},4400)}
+function resetAll(){stop();state.eye=1.65;state.distance=3.8;state.eyeX=0;state.heading=0;state.fov=76;state.wall=3;state.angle=0;state.observer=true;state.cone=false;state.range=false;state.labels=true;state.aux=true;state.mode='auto';state.zoom=1;state.pan=[0,0];state.planPan=[0,0];state.yaw=-.57;state.pitch=.53;state.orbitTarget=null;state.orbitDeg=0;state.showVP=true;state.fov=100;renderVPList();setStep(1)}
+STEPS.forEach(st=>{const b=document.createElement('button');b.type='button';b.dataset.stepButton=String(st.n);b.textContent=st.n+' '+st.short;b.title=st.title;b.addEventListener('click',()=>setStep(st.n));$('#steps').append(b)});
+$('#prev').onclick=()=>setStep(state.step-1);$('#next').onclick=()=>setStep(state.step+1);$('#play').onclick=togglePlay;
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('#fovSlider').addEventListener('input',e=>{const n=Number(e.target.value);if(!Number.isFinite(n))return;state.fov=Math.min(180,Math.max(1,n));dirty=true;updateUI()});
+$('#fovMinus').onclick=()=>{state.fov=Math.min(180,Math.max(1,Math.round(state.fov)-1));dirty=true;updateUI()};
+$('#fovPlus').onclick=()=>{state.fov=Math.min(180,Math.max(1,Math.round(state.fov)+1));dirty=true;updateUI()};
+const setEye=v=>{state.eye=Math.min(2.5,Math.max(.8,v));meshDirty=true;dirty=true;updateUI()};
+$('#eyeSlider').addEventListener('input',e=>{const n=Number(e.target.value);if(!Number.isFinite(n))return;setEye(n)});
+$('#eyeMinus').onclick=()=>setEye(Math.round((state.eye-.05)*100)/100);
+$('#eyePlus').onclick=()=>setEye(Math.round((state.eye+.05)*100)/100);
+$('#coneBtn').onclick=()=>{state.cone=!state.cone;dirty=true;updateUI()};
+$('#vpHide').onclick=()=>{state.showVP=!state.showVP;dirty=true;updateUI()};$('#distSlider').addEventListener('input',e=>{const v=Number(e.target.value);if(!Number.isFinite(v))return;if(Math.abs(state.orbitDeg)>0.5)state.orbitR=Math.max(5,Math.min(20,v));else state.distance=Math.max(2.5,Math.min(8,v));meshDirty=true;dirty=true;updateUI()});const bumpDist=d=>{if(Math.abs(state.orbitDeg)>0.5)state.orbitR=Math.max(5,Math.min(20,Math.round((state.orbitR+d)*10)/10));else state.distance=Math.max(2.5,Math.min(8,Math.round((state.distance+d)*100)/100));meshDirty=true;dirty=true;updateUI()};$('#distMinus').onclick=()=>bumpDist(-0.2);$('#distPlus').onclick=()=>bumpDist(0.2);const setOrbit=v=>{state.orbitDeg=Math.max(-60,Math.min(60,Math.round(v)));meshDirty=true;dirty=true;updateUI()};$('#orbitSlider').addEventListener('input',e=>{const n=Number(e.target.value);if(Number.isFinite(n))setOrbit(n)});$('#orbitMinus').onclick=()=>setOrbit(state.orbitDeg-5);$('#orbitPlus').onclick=()=>setOrbit(state.orbitDeg+5);$('#pvZoom').onclick=()=>togglePreviewSize();
+
+$('#labelBtn').onclick=()=>{state.labels=!state.labels;dirty=true;updateUI()};
+$('#auxBtn').onclick=()=>{state.aux=!state.aux;dirty=true;updateUI()};
+$('#exampleBtn').onclick=()=>{state.example=!state.example;dirty=true;updateUI()};
+$('#resetBtn').onclick=resetAll;
+
+/* ================= 画布交互 ================= */
+function screenPosition(e){const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
+function groundAt(x,y,height=state.eye){if(camera.ortho)return [(x-W/2)*camera.width/W+camera.target[0],height,(H/2-y)*camera.height/H+camera.target[2]];const f=V.unit(V.sub(camera.target,camera.eye)),back=V.mul(f,-1),right=V.unit(V.cross(back,[0,1,0])),up=V.cross(right,back),ray=V.add(f,V.add(V.mul(right,(x-W/2)/camera.focal),V.mul(up,(H/2-y)/camera.focal)));if(Math.abs(ray[1])<.0001)return null;const t=(height-camera.eye[1])/ray[1];if(t<=0)return null;return V.add(camera.eye,V.mul(ray,t))}
+function hitHandle(x,y){if(!observerVisible())return null;const o=observerFrame(),eye=project(o.eye,false),tip=project(V.add(o.eye,V.mul(o.forward,1.45)),false);if(tip&&Math.hypot(x-tip.x,y-tip.y)<20)return 'heading';if(eye&&Math.hypot(x-eye.x,y-eye.y)<20)return 'eye';return null}
+function moveHandle(kind,x,y){const p=groundAt(x,y);if(!p)return;if(kind==='eye'){if(Math.abs(state.orbitDeg)>0.5){state.orbitR=Math.min(20,Math.max(5,Math.hypot(p[0],p[2]-3)));state.orbitDeg=Math.max(-60,Math.min(60,Math.atan2(-p[0],-(p[2]-3))*180/Math.PI))}else{state.eyeX=Math.min(4,Math.max(-4,p[0]));state.distance=Math.min(8,Math.max(2.5,-p[2]))}}else{if(Math.abs(state.orbitDeg)>0.5)return;state.heading=Math.min(60,Math.max(-60,Math.atan2(p[0]-state.eyeX,p[2]+state.distance)*180/Math.PI))}meshDirty=true;dirty=true;updateUI()}
+let pointer=null,touches=new Map(),pinch=0;
+canvas.addEventListener('pointerdown',e=>{stop();try{canvas.setPointerCapture(e.pointerId)}catch(err){}const pos=screenPosition(e);touches.set(e.pointerId,[pos.x,pos.y]);pointer={id:e.pointerId,x:pos.x,y:pos.y,handle:hitHandle(pos.x,pos.y),vp:vpAt(pos.x,pos.y),pan:e.shiftKey||e.button===2};if(touches.size===2){pointer.handle=null;const a=[...touches.values()];pinch=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])}});
+canvas.addEventListener('pointermove',e=>{const pos=screenPosition(e);if(!touches.has(e.pointerId)){canvas.style.cursor=vpAt(pos.x,pos.y)>=0?'ew-resize':hitHandle(pos.x,pos.y)?'grab':state.view==='orbit'?'grab':state.view==='plan'?'move':'default';return}touches.set(e.pointerId,[pos.x,pos.y]);if(touches.size===2){const a=[...touches.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pinch>0&&state.view!=='picture')state.zoom=Math.min(3.2,Math.max(.48,state.zoom*d/pinch));pinch=d;dirty=true;return}if(!pointer||pointer.id!==e.pointerId)return;const dx=pos.x-pointer.x,dy=pos.y-pointer.y;pointer.x=pos.x;pointer.y=pos.y;if(pointer.vp>=0){setVPAngle(pointer.vp,pos.x);return}
+if(pointer.handle){moveHandle(pointer.handle,pos.x,pos.y);return}if(state.view==='orbit'){if(pointer.pan){const r=14/state.zoom*.0018,t=state.orbitTarget||[0,1,1.9];state.orbitTarget=V.add(t,[-dx*Math.cos(state.yaw)*r,dy*r,-dx*Math.sin(state.yaw)*r])}else{state.yaw-=dx*.006;state.pitch=Math.min(1.48,Math.max(-.1,state.pitch+dy*.005))}}else if(state.view==='plan'){state.planPan[0]-=dx*camera.width/W;state.planPan[1]+=dy*camera.height/H}dirty=true;updateUI()});
+function release(e){touches.delete(e.pointerId);pointer=null;pinch=0;if(touches.size===1){const entry=[...touches.entries()][0];pointer={id:entry[0],x:entry[1][0],y:entry[1][1],handle:null,pan:false}}}
+canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{if(state.view==='picture')return;e.preventDefault();state.zoom=Math.min(3.2,Math.max(.48,state.zoom*Math.exp(-e.deltaY*.001)));dirty=true},{passive:false});
+document.addEventListener('keydown',e=>{const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='BUTTON'||t.tagName==='SUMMARY'))return;if(e.key==='ArrowRight'){e.preventDefault();setStep(state.step+1)}else if(e.key==='ArrowLeft'){e.preventDefault();setStep(state.step-1)}else if(e.code==='Space'){e.preventDefault();togglePlay()}});
+
+/* ================= 成图预览（离屏渲染 → 2D 画布） ================= */
+const pvEl=$('#preview'),pvCtx=pvEl?pvEl.getContext('2d'):null;
+const pvTmp=document.createElement('canvas'),pvTmpCtx=pvTmp.getContext('2d');
+let fbo=null,fbTex=null,fbDepth=null,fbW=0,fbH=0,fbPix=null;
+function ensureFBO(w,h){
+if(!gl)return false;
+if(fbo&&fbW===w&&fbH===h)return true;
+fbW=w;fbH=h;
+if(!fbo)fbo=gl.createFramebuffer();
+if(!fbTex)fbTex=gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D,fbTex);
+gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+if(!fbDepth)fbDepth=gl.createRenderbuffer();
+gl.bindRenderbuffer(gl.RENDERBUFFER,fbDepth);
+gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,w,h);
+gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
+gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,fbTex,0);
+gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,fbDepth);
+const ok=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+fbPix=new Uint8Array(w*h*4);
+return ok;
+}
+function renderPreview(){
+if(!gl||!pvCtx)return;
+const w=pvEl.width,h=pvEl.height;
+if(!ensureFBO(w,h))return;
+const sW=W,sH=H,sView=state.view,sPan=state.pan;
+W=w;H=h;state.pan=[0,0];
+setCamera('picture');
+camera.matrix=multiply(perspective(2*Math.atan(H/(2*camera.focal)),w/h,.8,60),camera.view);
+gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
+gl.viewport(0,0,w,h);
+gl.clearColor(0,0,0,0);
+gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+gl.useProgram(program);
+gl.uniformMatrix4fv(program.matrix,false,camera.matrix);
+gl.uniformMatrix4fv(program.model,false,camera.model);
+gl.uniform1f(program.opacity,1);
+tintMode=true;
+for(const n of ['floor','bed','body','water','plants'])drawGroup(n);
+gl.uniformMatrix4fv(program.model,false,identity());
+if(state.example)drawGroup('person');
+tintMode=false;
+gl.uniform1f(program.tintMix,0);
+gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,fbPix);
+gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+W=sW;H=sH;state.pan=sPan;
+setCamera(sView);
+const tmpW=pvTmp.width,tmpH=pvTmp.height;
+if(tmpW!==w||tmpH!==h){pvTmp.width=w;pvTmp.height=h;}
+const img=pvTmpCtx.createImageData(w,h);
+for(let y=0;y<h;y++){
+const src=(h-1-y)*w*4,dst=y*w*4;
+img.data.set(fbPix.subarray(src,src+w*4),dst);
+}
+pvTmpCtx.putImageData(img,0,0);
+const g=pvCtx.createLinearGradient(0,0,0,h);
+g.addColorStop(0,'#e9f4ff');g.addColorStop(.5,'#e9f4ff');
+g.addColorStop(.5,'#f1e9dd');g.addColorStop(1,'#f1e9dd');
+pvCtx.fillStyle=g;pvCtx.fillRect(0,0,w,h);
+pvCtx.drawImage(pvTmp,0,0);
+pvCtx.strokeStyle='rgba(11,87,255,.55)';pvCtx.lineWidth=1;
+pvCtx.beginPath();pvCtx.moveTo(0,Math.round(h/2)+.5);pvCtx.lineTo(w,Math.round(h/2)+.5);pvCtx.stroke();
+}
+
+/* ================= 预览放大 ================= */
+let pvBig=false,pvBack=null;
+function applyPvSize(){
+const box=$('#miniBox'),el=$('#preview');
+if(!box||!el)return;
+if(pvBig){
+el.width=960;el.height=600;box.classList.add('expanded');
+if(!pvBack){pvBack=document.createElement('div');pvBack.className='pv-backdrop';pvBack.addEventListener('click',()=>togglePreviewSize());(document.querySelector('.panel')||document.body).appendChild(pvBack)}
+}else{
+el.width=320;el.height=200;box.classList.remove('expanded');
+if(pvBack){pvBack.remove();pvBack=null}
+}
+const z=$('#pvZoom');if(z)z.textContent=pvBig?'⤡':'⤢';
+dirty=true;
+}
+function togglePreviewSize(){pvBig=!pvBig;applyPvSize();if(pvBig)renderPreview()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pvBig)togglePreviewSize()});
+
+/* ================= 启动 ================= */
+window.addEventListener('resize',resize);
+const layoutObserver=new ResizeObserver(resize);
+layoutObserver.observe($('#viewport'));
+initGL();
+renderVPList();
+resize();
+setTimeout(()=>{try{syncVPValues()}catch(e){}},60);
+setStep(1);
+const hashStep=Number((location.hash.match(/^\#s?(\d+)/)||[])[1]);
+if(hashStep>=1&&hashStep<=10)setStep(hashStep);
+dirty=true;
+loop();
+</script>
+</body>
+</html>
